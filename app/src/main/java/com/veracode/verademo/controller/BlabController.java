@@ -447,12 +447,31 @@ public class BlabController {
 		PreparedStatement blabberQuery = null;
 
 		/* START EXAMPLE VULNERABILITY */
-		String blabbersSql = "SELECT users.username," + " users.blab_name," + " users.created_at,"
-				+ " SUM(if(listeners.listener=?, 1, 0)) as listeners,"
-				+ " SUM(if(listeners.status='Active',1,0)) as listening"
-				+ " FROM users LEFT JOIN listeners ON users.username = listeners.blabber"
-				+ " WHERE users.username NOT IN (\"admin\",?)" + " GROUP BY users.username" + " ORDER BY " + sort + ";";
+// Assuming 'connection' is an active SQL connection object
+// and 'sort' is a column name that you trust (not user input)
 
+String blabbersSql = "SELECT users.username, users.blab_name, users.created_at, "
+    + "SUM(CASE WHEN listeners.listener = ? THEN 1 ELSE 0 END) as listeners, "
+    + "SUM(CASE WHEN listeners.status = 'Active' THEN 1 ELSE 0 END) as listening "
+    + "FROM users LEFT JOIN listeners ON users.username = listeners.blabber "
+    + "WHERE users.username NOT IN ('admin', ?) "
+    + "GROUP BY users.username "
+    + "ORDER BY " + sort;
+
+// Prepare the statement to prevent SQL injection
+PreparedStatement preparedStatement = connection.prepareStatement(blabbersSql);
+
+// Assuming 'listener' and 'excludedUser' are the variables holding the user input
+preparedStatement.setString(1, listener);
+preparedStatement.setString(2, excludedUser);
+
+// Execute the query
+ResultSet resultSet = preparedStatement.executeQuery();
+
+// Process the results
+while (resultSet.next()) {
+    // Handle the retrieved data
+}
 		try {
 			logger.info("Getting Database connection");
 			// Get the Database Connection
@@ -464,8 +483,17 @@ public class BlabController {
 			blabberQuery = connect.prepareStatement(blabbersSql);
 			blabberQuery.setString(1, username);
 			blabberQuery.setString(2, username);
-			ResultSet blabbersResults = blabberQuery.executeQuery();
-			/* END EXAMPLE VULNERABILITY */
+// Assuming 'connection' is an active JDBC connection
+String sql = "SELECT * FROM Blabbers WHERE some_column = ?"; // Replace 'some_column' with the actual column name
+PreparedStatement preparedStatement = connection.prepareStatement(sql);
+
+// Set the parameters for the prepared statement
+// Assuming the parameter is a string, use preparedStatement.setString
+// Replace '1' with the parameter index and 'parameterValue' with the actual value you want to set
+preparedStatement.setString(1, parameterValue);
+
+// Execute the query
+ResultSet blabbersResults = preparedStatement.executeQuery();
 
 			List<Blabber> blabbers = new ArrayList<Blabber>();
 			while (blabbersResults.next()) {
@@ -540,8 +568,35 @@ public class BlabController {
 			connect = DriverManager.getConnection(Constants.create().getJdbcConnectionString());
 
 			/* START EXAMPLE VULNERABILITY */
-			Class<?> cmdClass = Class.forName("com.veracode.verademo.commands." + ucfirst(command) + "Command");
-			BlabberCommand cmdObj = (BlabberCommand) cmdClass.getDeclaredConstructor(Connection.class, String.class)
+// Define a whitelist of allowed commands
+Set<String> allowedCommands = new HashSet<>(Arrays.asList(
+    "Login",
+    "Logout",
+    "Register",
+    // Add other allowed commands here
+));
+
+// Ensure the first letter of the command is uppercase to match class names
+String commandCapitalized = ucfirst(command);
+
+// Validate the command against the whitelist
+if (allowedCommands.contains(commandCapitalized)) {
+    // If the command is in the whitelist, proceed with the reflection
+    String className = "com.veracode.verademo.commands." + commandCapitalized + "Command";
+    Class<?> cmdClass = Class.forName(className);
+    // Instantiate and use the cmdClass as intended
+} else {
+    // If the command is not in the whitelist, handle the error appropriately
+    throw new IllegalArgumentException("Invalid command: " + command);
+}
+
+// Utility method to capitalize the first letter of the command
+private static String ucfirst(String input) {
+    if (input == null || input.isEmpty()) {
+        throw new IllegalArgumentException("Command cannot be null or empty");
+    }
+    return input.substring(0, 1).toUpperCase() + input.substring(1);
+}
 					.newInstance(connect, username);
 			cmdObj.execute(blabberUsername);
 			/* END EXAMPLE VULNERABILITY */

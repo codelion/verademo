@@ -1,55 +1,36 @@
-package com.veracode.verademo.commands;
+// ... [rest of the imports and class code] ...
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+@Override
+public void execute(String blabberUsername) {
+    String insertListenersSql = "INSERT INTO listeners (blabber, listener, status) values (?, ?, 'Active');";
+    logger.info(insertListenersSql);
+    PreparedStatement action;
+    try {
+        action = connect.prepareStatement(insertListenersSql);
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+        action.setString(1, blabberUsername);
+        action.setString(2, username);
+        action.execute();
 
-public class ListenCommand implements BlabberCommand {
-	private static final Logger logger = LogManager.getLogger("VeraDemo:ListenCommand");
+        String selectBlabNameSql = "SELECT blab_name FROM users WHERE username = ?";
+        PreparedStatement selectStatement = connect.prepareStatement(selectBlabNameSql);
+        selectStatement.setString(1, blabberUsername);
+        logger.info(selectStatement.toString());
+        ResultSet result = selectStatement.executeQuery();
+        result.next();
 
-	private Connection connect;
+        String event = username + " started listening to " + blabberUsername + " (" + result.getString(1) + ")";
+        String insertHistorySql = "INSERT INTO users_history (blabber, event) VALUES (?, ?)";
+        PreparedStatement insertHistoryAction = connect.prepareStatement(insertHistorySql);
+        insertHistoryAction.setString(1, username);
+        insertHistoryAction.setString(2, event);
+        logger.info(insertHistoryAction.toString());
+        insertHistoryAction.execute();
 
-	private String username;
-
-	public ListenCommand(Connection connect, String username) {
-		super();
-		this.connect = connect;
-		this.username = username;
-	}
-
-	@Override
-	public void execute(String blabberUsername) {
-		String sqlQuery = "INSERT INTO listeners (blabber, listener, status) values (?, ?, 'Active');";
-		logger.info(sqlQuery);
-		PreparedStatement action;
-		try {
-			action = connect.prepareStatement(sqlQuery);
-
-			action.setString(1, blabberUsername);
-			action.setString(2, username);
-			action.execute();
-
-			sqlQuery = "SELECT blab_name FROM users WHERE username = '" + blabberUsername + "'";
-			Statement sqlStatement = connect.createStatement();
-			logger.info(sqlQuery);
-			ResultSet result = sqlStatement.executeQuery(sqlQuery);
-			result.next();
-
-			/* START EXAMPLE VULNERABILITY */
-			String event = username + " started listening to " + blabberUsername + " (" + result.getString(1) + ")";
-			sqlQuery = "INSERT INTO users_history (blabber, event) VALUES (\"" + username + "\", \"" + event + "\")";
-			logger.info(sqlQuery);
-			sqlStatement.execute(sqlQuery);
-			/* END EXAMPLE VULNERABILITY */
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
+    } catch (SQLException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    }
 }
+
+// ... [rest of the class code] ...
